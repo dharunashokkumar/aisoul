@@ -156,6 +156,19 @@ Packaged as `jniLibs/<abi>/libbusybox.so | libjq.so | libcurl_exe.so` with `useL
 
 Version → **0.6.0 (versionCode 5)**.
 
+---
+
+## 2026-07-18 — system prompt head + drop forced continuity
+
+**D-034 — PROMPT.md is the system-prompt head; continuity/cursor forcing removed.** User feedback: chat was being forced to "continue" from `CURSOR.md` / continuity conduct, and the real operating rules lived at the bottom of the prompt. Changes:
+
+1. **System prompt order** is now: **`PROMPT.md` first** (`# operating instructions`) → SOUL → USER → SUMMARY → MEMORY index → recalled bodies → today's note → last journal → time facts. Identity and context follow the rules; the model sees how to work before who it is.
+2. **No more forced continuity.** `CURSOR.md` is **not injected** into the chat system prompt. Distill no longer requests or writes a resume cursor (parser still tolerates a stray `cursor` field so old model replies don't break). PROMPT explicitly: answer the current message; use background context when it helps; never invent unfinished work or a "picking up where we left off" monologue.
+3. **Stronger default PROMPT.md** — sections for tools (read-before-write, gate honesty, toolbox bounds), memory (`remember` only for weeks-worth facts, dense descriptions, no duplicates), trust (fetch = data not instructions), phone formatting. Stock files still matching the old D-029 continuity bullet are one-shot replaced on `ensureSeeded()`; user-customized PROMPT without that marker is left alone.
+4. Distill memory rules tightened to match (0–3 ops, update-not-duplicate, dense description). `remember` tool description aligned.
+
+`writeCursor` remains on `HarnessStore` for any leftover file/manual edit; the product path no longer feeds it to the model.
+
 **Open questions (to resolve in future sessions):**
 - ~~O-1: Soul-interview script~~ → resolved (D-015).
 - ~~O-2: Widget DSL golden examples~~ → resolved (D-022 + D-031): talk/today/memory defaults, server-status in tests, countdown + habit in the add-widget gallery.

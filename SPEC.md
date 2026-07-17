@@ -50,11 +50,11 @@ The harness is a folder of human-readable files that IS the AI's identity and kn
 
 ```
 /harness
+  PROMPT.md         # operating rules — head of every system prompt (D-029 / D-034)
   SOUL.md           # who the AI is: personality, tone, boundaries, how it should behave
   USER.md           # who the user is: role, context, preferences
   MEMORY.md         # index of long-term memories (one line per memory file)
   SUMMARY.md        # the long arc — rolled up by the META pass (D-020)
-  CURSOR.md         # resume-here state, rewritten by every distill (D-020)
   activity.tsv      # one row per distilled session: date, time, label, ops (D-020)
   memories/         # one markdown file per durable fact/topic, with frontmatter
     <slug>.md
@@ -71,7 +71,7 @@ The harness is a folder of human-readable files that IS the AI's identity and kn
 Rules:
 
 - Every file is visible in an in-app file browser and editable by the user with a plain text editor.
-- The system prompt for every agent turn is assembled from: `SOUL.md` + `USER.md` + `MEMORY.md` (index only) + relevant `memories/` files (recalled by simple keyword relevance in v1) + today's note if it exists.
+- The system prompt for every agent turn is assembled from: **`PROMPT.md` first** (operating rules — tools, memory, trust, format) + `SOUL.md` + `USER.md` + `SUMMARY.md` + `MEMORY.md` (index) + recalled `memories/` bodies + today's note + last journal entry + time facts. No resume cursor and no forced "continue where we left off" (D-034).
 - The agent reads harness files freely, appends to `memories/` and `notes/` freely (with a visible activity chip), and needs permission for everything else (§6).
 - Memory files use frontmatter (`name`, `description`, `type: user|preference|project|reference`) so recall can rank by description without loading bodies.
 

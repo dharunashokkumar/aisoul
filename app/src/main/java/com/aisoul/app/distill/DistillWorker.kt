@@ -63,10 +63,9 @@ class DistillWorker(
         val result = DistillParser.parseResult(raw)
         applyOps(container, result.operations)
 
-        // the closeout invariants (D-020): journal entry, cursor, activity row, title
+        // closeout (D-020 / D-034): journal + activity + title — no resume cursor
         val label = result.activity ?: "session"
         result.log?.let { runCatching { container.harness.appendJournalEntry(label, it) } }
-        result.cursor?.let { runCatching { container.harness.writeCursor(it) } }
         runCatching { container.harness.appendActivity(label, result.operations.size) }
         result.title?.let { runCatching { container.harness.setChatTitle(chatId, it) } }
 
@@ -157,26 +156,26 @@ class DistillWorker(
         private const val META_EVERY = 12
 
         private val DISTILL_SYSTEM = """
-            you close out one session for a personal ai: distill durable facts into memory files, then write the session handoff.
+            you close out one session for a personal ai: distill durable facts into memory files, then a short journal entry.
 
             output STRICT json, nothing else:
-            {"operations":[{"op":"create|update|delete","slug":"kebab-case-slug","name":"short title","description":"one line used for recall","type":"user|preference|project|reference","content":"markdown body"}],
-             "log":"the session journal entry, markdown",
-             "cursor":"resume-here state for the next session",
+            {"operations":[{"op":"create|update|delete","slug":"kebab-case-slug","name":"short title","description":"one dense recall line with keywords","type":"user|preference|project|reference","content":"short markdown body, no fluff"}],
+             "log":"session journal entry, markdown",
              "activity":"3-5 word session label",
              "title":"short chat title"}
 
-            memory rules:
-            - only facts worth remembering for weeks: identity, preferences, ongoing projects, important references.
-            - no session trivia, no restating the conversation.
+            memory rules (efficient — smarter, not bigger):
+            - only facts worth weeks: identity, standing preferences, ongoing projects, hard constraints, important references.
+            - no session trivia, no restating the conversation, no facts already clear in the chat alone.
             - 0 to 3 operations is typical. [] when nothing durable appeared.
-            - if a slug in the existing index already covers the topic, use op "update" with that slug instead of creating a near-duplicate.
-            - "delete" only when the conversation proves an existing memory wrong; put the reason in "description".
+            - one topic per slug. if the index already covers the topic, op "update" that slug — never near-duplicates.
+            - description = one dense line the recall system can match; content = short body only.
+            - "delete" only when the conversation proves an existing memory wrong; reason in "description".
 
             handoff rules:
-            - "log": what happened, what was decided, what's unresolved, anything new you read about the user. write it to your future self.
-            - "cursor": live state only — last thing done, exact next step, open threads. lean; point at files, don't restate them.
-            - omit any handoff field the session didn't earn (a two-line chat needs no cursor rewrite).
+            - "log": what happened, what was decided, anything durable you learned about the user. write to your future self. omit if the chat was two lines of nothing.
+            - "activity" / "title": short labels. omit title if nothing better than the first user message.
+            - do not invent unfinished work or a "next step" resume state — chat has no forced continuity.
         """.trimIndent()
 
         private val META_SYSTEM = """

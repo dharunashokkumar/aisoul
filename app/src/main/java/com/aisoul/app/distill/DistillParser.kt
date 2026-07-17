@@ -7,8 +7,9 @@ import kotlinx.serialization.json.Json
 /**
  * IMPLEMENTATION §7 — strict JSON output contract for the distill pass.
  * Malformed output → empty result; the harness is never corrupted by a bad
- * model reply. v2 (D-020) adds the closeout fields: log, cursor, activity,
- * title — each optional, each dropped independently when malformed.
+ * model reply. Closeout fields (D-020): log, activity, title — optional,
+ * dropped independently when malformed. `cursor` is still parsed if a model
+ * emits it but is ignored at apply time (D-034 — no forced continuity).
  */
 @Serializable
 data class MemoryOp(

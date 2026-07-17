@@ -243,13 +243,13 @@ class RunCommandTool(private val toolbox: ToolboxRunner) : AgentTool {
 
 class RememberTool(private val memories: MemoryStore) : AgentTool {
     override val name = "remember"
-    override val description = "save one durable fact to memory right now (same rules as the background distill). use for things worth keeping for weeks, not session trivia."
+    override val description = "save one durable fact to memory right now. weeks-worth only: identity, preferences, projects, constraints. never session trivia. one topic per slug; update an existing slug instead of duplicating."
     override val inputSchema = schema {
-        string("slug", "kebab-case id, stable per topic", req = true)
+        string("slug", "kebab-case id, stable per topic (reuse to update)", req = true)
         string("name", "short title", req = true)
-        string("description", "one line used for recall", req = true)
+        string("description", "one dense recall line with keywords", req = true)
         string("type", "user | preference | project | reference")
-        string("content", "markdown body of the memory", req = true)
+        string("content", "short markdown body, no fluff", req = true)
     }
 
     override fun gateAction(args: JsonObject): GateAction? {
