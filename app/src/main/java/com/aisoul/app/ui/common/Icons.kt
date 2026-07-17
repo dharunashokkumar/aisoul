@@ -143,4 +143,28 @@ object AiSoulIcons {
             }
         }
     }
+
+    /** circular arrow — retry the last exchange */
+    val Retry: ImageVector by lazy {
+        icon("retry") {
+            stroke {
+                moveTo(19.2f, 12f)
+                curveTo(19.2f, 16f, 16f, 19.2f, 12f, 19.2f)
+                curveTo(8f, 19.2f, 4.8f, 16f, 4.8f, 12f)
+                curveTo(4.8f, 8f, 8f, 4.8f, 12f, 4.8f)
+                curveTo(14.4f, 4.8f, 16.5f, 5.9f, 17.8f, 7.7f)
+                moveTo(18.2f, 3.8f); lineTo(18.2f, 8.2f); lineTo(13.8f, 8.2f)
+            }
+        }
+    }
+
+    /** small flag — report a response */
+    val Flag: ImageVector by lazy {
+        icon("flag") {
+            stroke {
+                moveTo(6f, 20f); lineTo(6f, 4.5f)
+                moveTo(6f, 5f); lineTo(17.5f, 5f); lineTo(14.5f, 8.5f); lineTo(17.5f, 12f); lineTo(6f, 12f)
+            }
+        }
+    }
 }

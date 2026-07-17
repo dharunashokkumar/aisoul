@@ -6,7 +6,9 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import androidx.glance.appwidget.updateAll
 import com.aisoul.app.AiSoulApp
+import com.aisoul.app.widgets.launcher.AiSoulGlanceWidget
 import java.util.concurrent.TimeUnit
 
 /**
@@ -34,6 +36,8 @@ class WidgetRefreshWorker(
                     runCatching { container.widgetEngine.refresh(widget, store) }
                 }
             }
+        // D-033 — push fresh cached values to any home-screen widgets
+        runCatching { AiSoulGlanceWidget().updateAll(applicationContext) }
         return Result.success()
     }
 

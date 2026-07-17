@@ -26,6 +26,19 @@
             </intent-filter>
         </activity>
 
+        <!-- D-033 — home-screen widget: cached values only, taps open the app -->
+        <receiver
+            android:name=".widgets.launcher.AiSoulWidgetReceiver"
+            android:exported="false"
+            android:label="@string/widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/launcher_widget_info" />
+        </receiver>
+
         <!-- IMPLEMENTATION §4 — agent turns survive app switching (O-6) -->
         <service
             android:name=".agent.AgentTurnService"

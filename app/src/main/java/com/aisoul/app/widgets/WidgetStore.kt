@@ -21,6 +21,7 @@ class WidgetStore(private val root: File, private val json: Json) {
     private val approvalsFile get() = File(dir, ".approvals.json")
     private val stateDir get() = File(dir, ".state")
     private val historyDir get() = File(dir, ".history")
+    private val proposalsDir get() = File(dir, ".proposals")
 
     private val pretty = Json { prettyPrint = true; encodeDefaults = false }
 
@@ -104,6 +105,56 @@ class WidgetStore(private val root: File, private val json: Json) {
         updateRegistry { registry ->
             registry[id]?.let { registry[id] = it.copy(born = true) }
         }
+    }
+
+    // ---- proposal inbox (D-030): specs wait here, execute never ----
+
+    data class Proposal(
+        val id: String,
+        val spec: WidgetSpec,
+        /** plain-language capability lines shown on the inbox card */
+        val capabilities: List<String>,
+    )
+
+    /** Validated spec text in, proposal file out. Nothing executes from here. */
+    suspend fun saveProposal(specJson: String): Unit = withContext(Dispatchers.IO) {
+        val result = runCatching { WidgetValidator.validate(specJson) }.getOrNull()
+        if (result !is WidgetValidator.Result.Valid) return@withContext
+        proposalsDir.mkdirs()
+        writeAtomic(File(proposalsDir, "${result.spec.id}.json"), specJson)
+    }
+
+    suspend fun listProposals(): List<Proposal> = withContext(Dispatchers.IO) {
+        proposalsDir.listFiles { file -> file.extension == "json" }
+            .orEmpty()
+            .sortedBy { it.lastModified() }
+            .mapNotNull { file ->
+                val text = runCatching { file.readText() }.getOrNull() ?: return@mapNotNull null
+                when (val result = runCatching { WidgetValidator.validate(text) }.getOrNull()) {
+                    is WidgetValidator.Result.Valid -> Proposal(
+                        id = file.nameWithoutExtension,
+                        spec = result.spec,
+                        capabilities = result.capabilities.summaryLines(result.spec.refresh),
+                    )
+                    else -> {
+                        file.delete() // a proposal that stopped validating is dead weight
+                        null
+                    }
+                }
+            }
+    }
+
+    /** THE approval moment — the human tapped approve on the dashboard card. */
+    suspend fun approveProposal(id: String): Unit = withContext(Dispatchers.IO) {
+        val file = File(proposalsDir, "$id.json")
+        val text = runCatching { file.readText() }.getOrNull() ?: return@withContext
+        val result = runCatching { WidgetValidator.validate(text) }.getOrNull()
+        if (result is WidgetValidator.Result.Valid) installApproved(result.spec)
+        file.delete()
+    }
+
+    suspend fun dismissProposal(id: String): Unit = withContext(Dispatchers.IO) {
+        File(proposalsDir, "$id.json").delete()
     }
 
     // ---- last-known values (dashboard renders instantly + honestly) ----

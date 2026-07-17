@@ -29,7 +29,6 @@ object GatePolicy {
 
         is GateAction.EditSoulUser -> Decision.ASK
         is GateAction.OverwriteFile -> Decision.ASK
-        is GateAction.InstallWidget -> Decision.ASK
 
         is GateAction.FetchHost -> when {
             action.host.lowercase() in allowedHosts -> Decision.ALLOW

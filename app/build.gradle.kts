@@ -23,8 +23,8 @@ android {
         applicationId = "com.aisoul.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.5.0"
+        versionCode = 5
+        versionName = "0.6.0"
 
         ndk {
             // arm64 + emulator only (D-010); the toolbox binaries ship per-abi
@@ -112,6 +112,8 @@ dependencies {
     // M4 backup: Drive authorization + Argon2id KDF (D-024)
     implementation(libs.play.services.auth)
     implementation(libs.argon2kt)
+    // D-033 — home-screen launcher widget
+    implementation(libs.androidx.glance.appwidget)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     implementation(libs.androidx.compose.ui.tooling.preview)

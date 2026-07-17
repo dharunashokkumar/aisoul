@@ -34,10 +34,4 @@ sealed interface GateAction {
     data class OverwriteFile(val path: String, val preview: String) : GateAction
     data class FetchHost(val host: String, val url: String, val method: String) : GateAction
     data class RunCommand(val command: String) : GateAction
-    data class InstallWidget(
-        val title: String,
-        /** plain-language capability lines, e.g. "GET https://…/health every 15 min" */
-        val capabilities: List<String>,
-        val specJson: String,
-    ) : GateAction
 }

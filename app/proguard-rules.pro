@@ -21,3 +21,7 @@
 -dontwarn org.conscrypt.**
 -dontwarn org.bouncycastle.**
 -dontwarn org.openjsse.**
+
+# Glance app widget (D-033) — receiver + generated session code
+-keep class androidx.glance.appwidget.** { *; }
+-keep class com.aisoul.app.widgets.launcher.** { *; }

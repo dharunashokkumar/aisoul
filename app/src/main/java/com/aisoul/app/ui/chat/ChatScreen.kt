@@ -12,13 +12,14 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -48,7 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -64,9 +65,11 @@ import com.aisoul.app.providers.Part
 import com.aisoul.app.providers.Role
 import com.aisoul.app.ui.common.AiSoulIcons
 import com.aisoul.app.ui.common.GhostButton
+import com.aisoul.app.ui.common.ShimmerText
 import com.aisoul.app.ui.common.pressable
 import com.aisoul.app.ui.common.staggeredEntrance
 import com.aisoul.app.ui.theme.AccentIce
+import com.aisoul.app.ui.theme.BorderStrong
 import com.aisoul.app.ui.theme.BorderSubtle
 import com.aisoul.app.ui.theme.Divider
 import com.aisoul.app.ui.theme.LocalAiSoulTypography
@@ -169,6 +172,9 @@ fun ChatScreen(
                 EmptyChat(modifier = Modifier.weight(1f))
             } else {
                 val results = remember(state.messages) { resultsById(state.messages) }
+                val lastAssistantIndex = state.messages.indexOfLast {
+                    it.role == Role.ASSISTANT && it.text.isNotBlank()
+                }
                 LazyColumn(
                     state = listState,
                     modifier = Modifier
@@ -178,7 +184,13 @@ fun ChatScreen(
                     verticalArrangement = Arrangement.spacedBy(Space.s24),
                 ) {
                     items(state.messages.size) { index ->
-                        MessageItem(state.messages[index], results, onReport = { reportTarget = it })
+                        MessageItem(
+                            message = state.messages[index],
+                            results = results,
+                            showRetry = index == lastAssistantIndex && !state.isStreaming,
+                            onRetry = { viewModel.retry() },
+                            onReport = { reportTarget = it },
+                        )
                     }
                     state.streamingText?.let { streaming ->
                         item(key = "streaming") {
@@ -186,11 +198,7 @@ fun ChatScreen(
                                 if (streaming.isNotEmpty()) AssistantText(streaming)
                                 when {
                                     state.activeTool != null -> ActiveToolChip(state.activeTool ?: "")
-                                    streaming.isEmpty() -> Text(
-                                        text = "thinking…",
-                                        style = type.caption,
-                                        color = TextTertiary,
-                                    )
+                                    streaming.isEmpty() -> ShimmerText("thinking…", style = type.caption)
                                 }
                             }
                         }
@@ -348,10 +356,11 @@ private fun EmptyChat(modifier: Modifier = Modifier) {
 private fun MessageItem(
     message: ChatMessage,
     results: Map<String, Part.ToolResult>,
+    showRetry: Boolean,
+    onRetry: () -> Unit,
     onReport: (String) -> Unit,
 ) {
     val type = LocalAiSoulTypography.current
-    val view = LocalView.current
     if (message.role == Role.USER) {
         // tool results ride in user-role messages; their cards render with the call
         if (message.text.isBlank()) return
@@ -367,19 +376,7 @@ private fun MessageItem(
             }
         }
     } else {
-        val reportable = message.text
-        Column(
-            verticalArrangement = Arrangement.spacedBy(Space.s12),
-            // SPEC §5 — long-press any AI message to report it
-            modifier = Modifier.pointerInput(reportable) {
-                detectTapGestures(onLongPress = {
-                    if (reportable.isNotBlank()) {
-                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                        onReport(reportable)
-                    }
-                })
-            },
-        ) {
+        Column(verticalArrangement = Arrangement.spacedBy(Space.s12)) {
             message.parts.forEach { part ->
                 when (part) {
                     is Part.Text -> if (part.text.isNotBlank()) AssistantText(part.text)
@@ -387,15 +384,68 @@ private fun MessageItem(
                     is Part.ToolResult -> Unit
                 }
             }
+            // D-028 — every AI message carries its own actions; no hidden gestures
+            if (message.text.isNotBlank()) {
+                MessageActions(
+                    text = message.text,
+                    showRetry = showRetry,
+                    onRetry = onRetry,
+                    onReport = { onReport(message.text) },
+                )
+            }
         }
     }
 }
 
-/** SPEC §5 — which tool, exact input, collapsed output. */
+/** copy · retry · report — quiet icons under each AI message (D-028) */
+@Composable
+private fun MessageActions(
+    text: String,
+    showRetry: Boolean,
+    onRetry: () -> Unit,
+    onReport: () -> Unit,
+) {
+    val clipboard = LocalClipboardManager.current
+    val view = LocalView.current
+    Row(horizontalArrangement = Arrangement.spacedBy(Space.s4)) {
+        MessageAction(icon = AiSoulIcons.Copy, label = "copy") {
+            clipboard.setText(AnnotatedString(text))
+            view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+        }
+        if (showRetry) {
+            MessageAction(icon = AiSoulIcons.Retry, label = "retry", onClick = onRetry)
+        }
+        MessageAction(icon = AiSoulIcons.Flag, label = "report", onClick = onReport)
+    }
+}
+
+@Composable
+private fun MessageAction(icon: ImageVector, label: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(32.dp)
+            .clip(RadiusChip)
+            .pressable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = TextTertiary,
+            modifier = Modifier.size(15.dp),
+        )
+    }
+}
+
+/**
+ * SPEC §5 / D-028 — which tool, exact input, live status. Auto-expands while
+ * running so work-in-progress is watchable, collapses once done.
+ */
 @Composable
 private fun ToolCallCard(call: Part.ToolCall, result: Part.ToolResult?) {
     val type = LocalAiSoulTypography.current
-    var expanded by remember { mutableStateOf(false) }
+    val running = result == null
+    var expanded by remember(running) { mutableStateOf(running) }
     val chevronRotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
         animationSpec = aiSoulSpring(),
@@ -422,7 +472,7 @@ private fun ToolCallCard(call: Part.ToolCall, result: Part.ToolResult?) {
                     .clip(RadiusChip)
                     .background(
                         when {
-                            result == null -> TextTertiary
+                            result == null -> AccentIce
                             result.isError -> Negative
                             else -> Positive
                         },
@@ -436,8 +486,12 @@ private fun ToolCallCard(call: Part.ToolCall, result: Part.ToolResult?) {
                     text = displayInput(call),
                     style = type.code,
                     color = TextSecondary,
-                    maxLines = if (expanded) 12 else 2,
+                    maxLines = 2,
                 )
+                if (running) {
+                    Spacer(Modifier.height(Space.s4))
+                    ShimmerText("running…", style = type.caption)
+                }
             }
             Icon(
                 imageVector = AiSoulIcons.Chevron,
@@ -448,21 +502,43 @@ private fun ToolCallCard(call: Part.ToolCall, result: Part.ToolResult?) {
                     .graphicsLayer { rotationZ = chevronRotation },
             )
         }
-        if (expanded && result != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(Divider),
-            )
+        if (expanded) {
+            SectionDivider()
+            Text(text = "INPUT", style = type.overline, color = TextTertiary,
+                modifier = Modifier.padding(start = Space.s16, top = Space.s12))
             Text(
-                text = result.content.take(4000).ifBlank { "(no output)" },
+                text = prettyArgs(call.argsJson),
                 style = type.code,
-                color = if (result.isError) Negative else TextSecondary,
-                modifier = Modifier.padding(horizontal = Space.s16, vertical = Space.s12),
+                color = TextSecondary,
+                modifier = Modifier.padding(horizontal = Space.s16, vertical = Space.s8),
             )
+            if (result != null) {
+                SectionDivider()
+                Text(text = "OUTPUT", style = type.overline, color = TextTertiary,
+                    modifier = Modifier.padding(start = Space.s16, top = Space.s12))
+                Text(
+                    text = result.content.take(4000).ifBlank { "(no output)" },
+                    style = type.code,
+                    color = if (result.isError) Negative else TextSecondary,
+                    modifier = Modifier
+                        .padding(horizontal = Space.s16)
+                        .padding(top = Space.s8, bottom = Space.s12),
+                )
+            } else {
+                Spacer(Modifier.height(Space.s8))
+            }
         }
     }
+}
+
+@Composable
+private fun SectionDivider() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(Divider),
+    )
 }
 
 @Composable
@@ -476,11 +552,20 @@ private fun ActiveToolChip(label: String) {
             .padding(horizontal = Space.s12, vertical = Space.s4),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(text = label, style = type.caption, color = TextSecondary, maxLines = 1)
+        ShimmerText(text = label, style = type.caption, modifier = Modifier.widthIn(max = 280.dp))
     }
 }
 
 private val displayJson = Json { ignoreUnknownKeys = true }
+private val prettyJson = Json { prettyPrint = true }
+
+private fun prettyArgs(argsJson: String): String =
+    runCatching {
+        prettyJson.encodeToString(
+            kotlinx.serialization.json.JsonElement.serializer(),
+            displayJson.parseToJsonElement(argsJson.ifBlank { "{}" }),
+        )
+    }.getOrDefault(argsJson).take(2000)
 
 private fun displayInput(call: Part.ToolCall): String {
     val args = runCatching {
@@ -499,6 +584,7 @@ private fun displayInput(call: Part.ToolCall): String {
     }.ifBlank { "…" }
 }
 
+/** D-028 — renders the MarkdownLite block tree with type-role styles only. */
 @Composable
 private fun AssistantText(text: String) {
     val type = LocalAiSoulTypography.current
@@ -513,6 +599,52 @@ private fun AssistantText(text: String) {
                     style = type.body,
                     color = TextPrimary,
                 )
+                is MdBlock.Heading -> if (block.level <= 2) {
+                    Text(
+                        text = block.text,
+                        style = type.title,
+                        color = TextPrimary,
+                        modifier = Modifier.padding(top = Space.s8),
+                    )
+                } else {
+                    Text(
+                        text = block.text.text.uppercase(),
+                        style = type.overline,
+                        color = TextTertiary,
+                        modifier = Modifier.padding(top = Space.s8),
+                    )
+                }
+                is MdBlock.Rule -> Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = Space.s4)
+                        .height(1.dp)
+                        .background(Divider),
+                )
+                is MdBlock.Bullets -> Column(verticalArrangement = Arrangement.spacedBy(Space.s4)) {
+                    block.items.forEachIndexed { index, item ->
+                        Row {
+                            Text(
+                                text = if (block.ordered) "${index + 1}." else "·",
+                                style = type.body,
+                                color = TextTertiary,
+                                modifier = Modifier.width(24.dp),
+                            )
+                            Text(text = item, style = type.body, color = TextPrimary, modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+                is MdBlock.Quote -> Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+                    Box(
+                        modifier = Modifier
+                            .width(2.dp)
+                            .fillMaxHeight()
+                            .background(BorderStrong),
+                    )
+                    Spacer(Modifier.width(Space.s12))
+                    Text(text = block.text, style = type.body, color = TextSecondary)
+                }
+                is MdBlock.Table -> TableBlock(block)
                 is MdBlock.Code -> Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -560,6 +692,50 @@ private fun AssistantText(text: String) {
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun TableBlock(table: MdBlock.Table) {
+    val type = LocalAiSoulTypography.current
+    val columns = maxOf(
+        table.header.size,
+        table.rows.maxOfOrNull { it.size } ?: 0,
+    )
+    if (columns == 0) return
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RadiusInput)
+            .background(Surface1)
+            .border(1.dp, BorderSubtle, RadiusInput),
+    ) {
+        if (table.header.isNotEmpty()) {
+            Row(modifier = Modifier.padding(horizontal = Space.s12, vertical = Space.s8)) {
+                repeat(columns) { column ->
+                    Text(
+                        text = table.header.getOrNull(column) ?: AnnotatedString(""),
+                        style = type.caption,
+                        color = TextSecondary,
+                        modifier = Modifier.weight(1f).padding(horizontal = Space.s4),
+                    )
+                }
+            }
+            SectionDivider()
+        }
+        table.rows.forEachIndexed { rowIndex, row ->
+            Row(modifier = Modifier.padding(horizontal = Space.s12, vertical = Space.s8)) {
+                repeat(columns) { column ->
+                    Text(
+                        text = row.getOrNull(column) ?: AnnotatedString(""),
+                        style = type.caption,
+                        color = TextPrimary,
+                        modifier = Modifier.weight(1f).padding(horizontal = Space.s4),
+                    )
+                }
+            }
+            if (rowIndex < table.rows.lastIndex) SectionDivider()
         }
     }
 }

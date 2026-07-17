@@ -103,7 +103,7 @@ class ChatViewModel(
                 container.settings.compatBaseUrl.first()
             } else null
             val client = container.providerFactory.create(provider, key ?: "", baseUrl)
-            val recalled = runCatching { container.memories.recall(trimmed) }.getOrDefault(emptyList())
+            val recalled = runCatching { container.recall.recall(trimmed) }.getOrDefault(emptyList())
             val system = container.harness.systemPrompt(recalled)
             _state.update { it.copy(providerName = provider.display, modelName = model) }
 
@@ -143,6 +143,29 @@ class ChatViewModel(
     fun stop() {
         turnJob?.cancel()
         finalizeTurn()
+    }
+
+    /**
+     * D-028 — regenerate the last exchange: truncate back to the most recent
+     * real user message (not tool results), rewrite the transcript file, and
+     * send that message again.
+     */
+    fun retry() {
+        if (_state.value.isStreaming) return
+        val messages = _state.value.messages
+        val lastUserIndex = messages.indexOfLast { message ->
+            message.role == Role.USER &&
+                message.parts.none { it is Part.ToolResult } &&
+                message.text.isNotBlank()
+        }
+        if (lastUserIndex < 0) return
+        val prompt = messages[lastUserIndex].text
+        val kept = messages.take(lastUserIndex)
+        _state.update { it.copy(messages = kept, error = null) }
+        viewModelScope.launch {
+            runCatching { container.harness.rewriteTranscript(chatId, kept) }
+            send(prompt)
+        }
     }
 
     fun newChat() {

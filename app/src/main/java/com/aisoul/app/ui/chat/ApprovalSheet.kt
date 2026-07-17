@@ -101,20 +101,11 @@ fun ApprovalSheet(
                     .padding(Space.s16)
                     .verticalScroll(rememberScrollState()),
             ) {
-                when (val action = approval.action) {
-                    is GateAction.InstallWidget -> {
-                        Text(text = "this widget will:", style = type.caption, color = TextSecondary)
-                        Spacer(Modifier.height(Space.s8))
-                        action.capabilities.forEach { line ->
-                            Text(text = "· $line", style = type.body, color = TextPrimary)
-                        }
-                    }
-                    else -> Text(
-                        text = approval.action.detail(),
-                        style = type.code,
-                        color = TextPrimary,
-                    )
-                }
+                Text(
+                    text = approval.action.detail(),
+                    style = type.code,
+                    color = TextPrimary,
+                )
             }
 
             approval.ruleOffer?.let { offer ->
@@ -179,7 +170,6 @@ private fun GateAction.headline(): String = when (this) {
     is GateAction.EditSoulUser -> "edit $path"
     is GateAction.OverwriteFile -> "write $path"
     is GateAction.AppendMemoryNote -> "append to $path"
-    is GateAction.InstallWidget -> "add widget “$title”"
 }
 
 private fun GateAction.detail(): String = when (this) {
@@ -188,5 +178,4 @@ private fun GateAction.detail(): String = when (this) {
     is GateAction.EditSoulUser -> preview
     is GateAction.OverwriteFile -> preview
     is GateAction.AppendMemoryNote -> preview
-    is GateAction.InstallWidget -> specJson
 }

@@ -131,9 +131,34 @@ Packaged as `jniLibs/<abi>/libbusybox.so | libjq.so | libcurl_exe.so` with `useL
 - First R8 run ever: **green**. `assembleRelease` = 10.0 MB APK (vs 21.9 debug); toolbox exec binaries, argon2 JNI libs, fonts, and license assets all survive shrinking. Proguard additions: keep argon2kt (JNI), keep native methods, standard okhttp dontwarns (kotlinx.serialization rules were already present).
 - Housekeeping: `.gitignore` extended for `keystore.properties`/`*.jks`; stray screenshots removed from repo root; the five root `.md` docs deliberately kept (living docs — not shipped in any build; DATA_SAFETY.md is the Play-form answer sheet).
 
+---
+
+## 2026-07-17 (night) — v0.6.0: publishing paused, feature wave instead
+
+**D-027 — Publishing paused; Termux bridge dropped from the roadmap.** The user chose more updates over M6 launch. Separately, an explicit product decision: **AiSoul will never require a companion app.** The SPEC §13 "Termux bridge" roadmap item is replaced by "expand the bundled toolbox" — more static binaries shipped the same jniLibs way (D-019). Rationale: asking users to install Termux (F-Droid only, its Play build is abandoned) to unlock features is exactly the kind of dependency a local-first product exists to avoid; the busybox/curl/jq toolbox already proves the bundling path works.
+
+**D-028 — Chat rendering v2 (the answer is the product).**
+- `MarkdownLite` grows into a real block parser: headings, bullet/numbered lists, tables, `---` rules, `>` quotes, fenced + inline code, **bold**/*italic*/~~strike~~ — still hand-rolled, still no library. Headings map to existing type roles only (h1–h2 → title, h3+ → overline+caps like the app's own section labels); tables render as token-styled rows, never a WebView.
+- Light latex-to-unicode pass for `$…$` spans (√, fractions, superscripts, greek) — the model is also *told* (via PROMPT.md, D-029) to write unicode math directly; the converter is a safety net.
+- "thinking…" and running-tool labels get a shimmer (gradient sweep, `rememberReducedMotion`-aware) so working-state is visible at a glance.
+- Long-press-to-report is replaced by an always-visible action row under each AI message: **copy · retry · report** (report keeps the exact-text email sheet; Play policy unaffected). Retry truncates the transcript back to the last user message and resends it — chats/*.jsonl gets a `rewriteTranscript` (atomic full rewrite); append-only was a convention, not a format.
+- Tool cards auto-expand while running with pretty-printed input and a live status line; collapsed cards keep the humanized one-liner. Nothing the agent does is invisible — now visibly in progress, not just visible after.
+
+**D-029 — PROMPT.md: the conduct section becomes a user-editable file.** `harness/PROMPT.md` is seeded with the built-in conduct text + new formatting rules (markdown structure, blank lines between paragraphs, `---` dividers, unicode math, tables). `systemPrompt()` reads it (fallback: built-in). It's an ordinary root file: visible and editable in the files screen, travels in backups. SOUL.md stays identity; PROMPT.md is operating instructions.
+
+**D-030 — Widget proposal inbox (closes the D-022 deferral).** `propose_widget` no longer installs through the chat approval sheet. It validates, then writes the spec to `widgets/.proposals/<id>.json` and tells the model "waiting in the dashboard inbox". The dashboard renders pending proposals (title + frozen-capability summary) with approve/dismiss; approve = `installApproved` (birth animation runs), dismiss = delete. One approval surface instead of two; `GateAction.InstallWidget` is deleted from the gate entirely — proposing is now side-effect-free, so it needs no gate.
+
+**D-031 — Golden widgets ship as an "add widget" gallery (resolves O-2).** Dashboard header gains "add": a sheet with two templates the user fills in and installs themselves (user action = approval): **countdown** (title + yyyy-mm-dd date → `countdown` source + stat) and **habit** (name → `file` source over `notes/habit-<slug>.md` + list + a "log today" button whose `chat` action asks the AI to prepend today's line). Both are plain DSL specs — the gallery dogfoods the engine the same way the defaults do.
+
+**D-032 — Smarter recall: embeddings when the provider has them, keywords forever as the floor.** `SmartRecall` wraps MemoryStore: OpenAI (`text-embedding-3-small`) and Gemini (`text-embedding-004`) get embedding-based ranking; Anthropic/compat (no embedding API) keep keyword overlap. Vectors live in `memories/.embeddings.json` keyed by slug + a hash of name+description, tagged with the model — provider switch or edit invalidates per-entry, the file is derived/rebuildable (SPEC §3 respected). Embedding text is name+description only (already sent to the provider in every system prompt — no new data class leaves the device). Any failure, timeout, or missing key falls back to keywords silently.
+
+**D-033 — Launcher widget v1 (roadmap §13.1): a zero-config mini-dashboard via Glance.** One home-screen widget type renders the first few ACTIVE dashboard widgets from their **cached** `.state/` values (title + primary line) — it never executes sources itself, so the capability freeze is untouched. `WidgetRefreshWorker` pushes Glance updates after each refresh pass. Tap opens the app. No config activity in v1; choosing a specific widget per launcher instance can come later.
+
+Version → **0.6.0 (versionCode 5)**.
+
 **Open questions (to resolve in future sessions):**
 - ~~O-1: Soul-interview script~~ → resolved (D-015).
-- ~~O-2: Widget DSL golden examples~~ → partially resolved (D-022): talk/today/memory defaults + server-status; countdown/habit examples still wanted.
+- ~~O-2: Widget DSL golden examples~~ → resolved (D-022 + D-031): talk/today/memory defaults, server-status in tests, countdown + habit in the add-widget gallery.
 - ~~O-3: Hilt vs. manual DI~~ → resolved manual (D-012).
 - ~~O-4: notes/ auto-create~~ → resolved on-first-write (D-016).
 - O-5: Tester recruitment plan specifics for the 12×14 closed test.

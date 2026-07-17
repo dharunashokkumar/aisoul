@@ -16,7 +16,6 @@ class GatePolicyTest {
     private val fetch = GateAction.FetchHost("api.example.com", "https://api.example.com/v1", "GET")
     private val command = GateAction.RunCommand("ping -c 1 db.example.com")
     private val mutating = GateAction.RunCommand("rm -rf workspace")
-    private val widget = GateAction.InstallWidget("server status", listOf("ping db"), "{}")
 
     private fun decide(action: GateAction, mode: PermissionMode) = GatePolicy.decide(action, mode)
 
@@ -38,13 +37,6 @@ class GatePolicyTest {
     fun `overwrites always ask`() {
         PermissionMode.entries.forEach { mode ->
             assertEquals(Decision.ASK, decide(overwrite, mode))
-        }
-    }
-
-    @Test
-    fun `widgets always ask`() {
-        PermissionMode.entries.forEach { mode ->
-            assertEquals(Decision.ASK, decide(widget, mode))
         }
     }
 
@@ -102,6 +94,5 @@ class GatePolicyTest {
         assertNull(GatePolicy.ruleOffer(command, PermissionMode.CAREFUL))
         assertNotNull(GatePolicy.ruleOffer(command, PermissionMode.STANDARD))
         assertNull(GatePolicy.ruleOffer(soul, PermissionMode.STANDARD))
-        assertNull(GatePolicy.ruleOffer(widget, PermissionMode.TRUSTED))
     }
 }

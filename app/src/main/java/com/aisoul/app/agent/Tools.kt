@@ -275,20 +275,12 @@ class RememberTool(private val memories: MemoryStore) : AgentTool {
 
 class ProposeWidgetTool(private val widgets: WidgetStore) : AgentTool {
     override val name = "propose_widget"
-    override val description = "propose a dashboard widget (declarative json spec) for user approval. capabilities freeze at approval: only the exact urls/commands/paths in the spec will ever execute. components: text|stat|list|progress|sparkline|buttons|divider. sources: static|http|tool|file|countdown|memory. actions: chat|run|url|refresh|screen."
+    override val description = "propose a dashboard widget (declarative json spec). it lands in the dashboard inbox where the user approves or dismisses it — nothing executes before approval. capabilities freeze at approval: only the exact urls/commands/paths in the spec will ever execute. components: text|stat|list|progress|sparkline|buttons|divider. sources: static|http|tool|file|countdown|memory. actions: chat|run|url|refresh|screen."
     override val inputSchema = schema { obj("spec", "the widget spec json object", req = true) }
 
-    override fun gateAction(args: JsonObject): GateAction? {
-        val spec = args["spec"] as? JsonObject ?: return null
-        return when (val result = WidgetValidator.validate(spec.toString())) {
-            is WidgetValidator.Result.Invalid -> null // execute() returns the problems
-            is WidgetValidator.Result.Valid -> GateAction.InstallWidget(
-                title = result.spec.title,
-                capabilities = result.capabilities.summaryLines(result.spec.refresh),
-                specJson = spec.toString(),
-            )
-        }
-    }
+    // D-030 — proposing is side-effect-free (the spec just waits in the
+    // inbox), so it needs no gate; approval happens on the dashboard card.
+    override fun gateAction(args: JsonObject): GateAction? = null
 
     override suspend fun execute(args: JsonObject): ToolOutcome {
         val spec = args["spec"] as? JsonObject
@@ -299,8 +291,10 @@ class ProposeWidgetTool(private val widgets: WidgetStore) : AgentTool {
                 isError = true,
             )
             is WidgetValidator.Result.Valid -> {
-                widgets.installApproved(result.spec)
-                ToolOutcome("widget '${result.spec.title}' approved and installed — it is on the dashboard now")
+                widgets.saveProposal(spec.toString())
+                ToolOutcome(
+                    "proposed widget '${result.spec.title}' — it is waiting in the dashboard inbox for the user to approve. do not assume it was accepted.",
+                )
             }
         }
     }

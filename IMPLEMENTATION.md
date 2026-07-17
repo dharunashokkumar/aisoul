@@ -1,6 +1,6 @@
 # AiSoul — Implementation Plan
 
-> **Status:** living document, version 0.5 — 2026-07-17. Companion to [SPEC.md](SPEC.md); decisions logged in [DECISIONS.md](DECISIONS.md).
+> **Status:** living document, version 0.6 — 2026-07-17. Companion to [SPEC.md](SPEC.md); decisions logged in [DECISIONS.md](DECISIONS.md). v0.6.0 (code 5): publishing paused for a feature wave — chat rendering v2, thinking shimmer, message action row, live tool cards, editable PROMPT.md, widget proposal inbox + add-widget gallery, embeddings recall, launcher widget (D-027…D-033).
 > **M0–M5 implemented and user-verified on device** (D-012…D-026): onboarding interview, memory + recall, distill pass v2, agent loop with 7 tools + permission gate, toolbox + terminal, chat history, dashboard home + widget DSL, backup (Drive round-trip verified live 2026-07-17: connect → back up → archive in Drive → restore; report flow verified), compliance surfaces done. v0.5.0 (code 4), 54 unit tests green, **first R8 release build green** (10 MB, toolbox/JNI/assets intact, debug-signing fallback). OAuth Android client live in `aisoul-502608`; privacy policy live at dharun.dev. **Now in M6:** upload keystore → Play Console setup → internal track → 12×14 closed test (O-5) → production (O-7 remainder: Play App Signing SHA-1 second OAuth client + consent screen out of Testing).
 
 ---

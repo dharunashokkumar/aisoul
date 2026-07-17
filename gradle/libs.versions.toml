@@ -13,6 +13,7 @@ datastore = "1.1.1"
 workManager = "2.10.0"
 playServicesAuth = "21.3.0"
 argon2kt = "1.6.0"
+glance = "1.1.1"
 junit = "4.13.2"
 
 [libraries]
@@ -34,6 +35,7 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
+androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
 argon2kt = { group = "com.lambdapioneer.argon2kt", name = "argon2kt", version.ref = "argon2kt" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 

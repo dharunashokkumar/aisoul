@@ -274,10 +274,10 @@ Safety posture: user keys never leave Keystore; everything the agent does is vis
 
 ## 13. Roadmap (post-v1, in rough order)
 
-1. **Android launcher widgets** (Glance) fed by the same widget DSL.
-2. **Termux bridge** — optional integration with user-installed Termux (F-Droid) via `RUN_COMMAND` for a real Linux environment; also the path to hosting actual CLIs (Claude Code / Codex / Gemini CLI) for power users.
-3. **Desktop remote** — phone as cockpit for Claude Code running on a PC (SSH/Tailscale).
-4. **Smarter recall** — embeddings-based memory recall (on-device or via provider) replacing keyword ranking.
+1. ~~**Android launcher widgets** (Glance) fed by the same widget DSL.~~ ✅ shipped v0.6.0 (D-033) — zero-config mini-dashboard from cached values.
+2. ~~**Smarter recall** — embeddings-based memory recall replacing keyword ranking.~~ ✅ shipped v0.6.0 (D-032) — provider embeddings, keywords as the floor.
+3. **Expand the bundled toolbox** — more static binaries shipped as `jniLibs` (the busybox/curl/jq path, D-019). **AiSoul never requires a companion app** — the old "Termux bridge" item is dropped (D-027): asking users to install Termux is exactly the dependency a local-first app avoids.
+4. **Desktop remote** — phone as cockpit for Claude Code running on a PC (SSH/Tailscale).
 5. **Widget sharing gallery** — import/export is already JSON; a curated gallery of community specs (still no backend: specs hosted in a public repo).
 6. **Voice** — push-to-talk input, spoken replies.
 7. **Monetization decision** — revisit once there are real users (leading candidate: one-time "pro" unlock; see DECISIONS.md).

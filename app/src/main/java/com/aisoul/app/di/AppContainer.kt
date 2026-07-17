@@ -25,7 +25,11 @@ import com.aisoul.app.backup.DriveClient
 import com.aisoul.app.distill.DistillWorker
 import com.aisoul.app.harness.HarnessStore
 import com.aisoul.app.harness.MemoryStore
+import com.aisoul.app.harness.SmartRecall
+import com.aisoul.app.providers.GeminiEmbeddingClient
+import com.aisoul.app.providers.OpenAiEmbeddingClient
 import com.aisoul.app.providers.ProviderFactory
+import com.aisoul.app.providers.ProviderType
 import com.aisoul.app.settings.SettingsStore
 import com.aisoul.app.toolbox.ToolboxRunner
 import com.aisoul.app.vault.KeyVault
@@ -90,6 +94,18 @@ class AppContainer(context: Context) {
         drive = DriveClient(http, json),
         settings = backupSettings,
     )
+
+    // D-032 — embeddings where the provider has them, keywords as the floor
+    val recall = SmartRecall(memories, harness.root, json) {
+        val provider = settings.selectedProvider.first()
+        val key = keys.getKey(provider)
+        when {
+            key.isNullOrBlank() -> null
+            provider == ProviderType.OPENAI -> OpenAiEmbeddingClient(http, key)
+            provider == ProviderType.GEMINI -> GeminiEmbeddingClient(http, key)
+            else -> null
+        }
+    }
 
     val permissions = PermissionStore(permissionsDataStore)
     val gate = PermissionGate(permissions)
