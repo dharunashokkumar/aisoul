@@ -169,6 +169,11 @@ Version → **0.6.0 (versionCode 5)**.
 
 `writeCursor` remains on `HarnessStore` for any leftover file/manual edit; the product path no longer feeds it to the model.
 
+## 2026-07-18 — Solve seccomp sandbox kill in command execution
+
+**D-035 — Executable path change for ProcessBuilder and prepended shell functions.** Under Android 10+ target SDK 29+ restrictions (seccomp policy), calling `execve` on any binary in a writable application directory (such as symlinks in `filesDir/bin/*`) causes a SIGSYS signal (exit code 159). To bypass this cleanly, `ToolboxRunner` is updated to run the shell directly from the read-only, package-manager-extracted `libbusybox.so` in `nativeLibraryDir` (which is permitted), and commands are prefixed with shell functions that map tool invocations (`ls`, `cat`, `curl`, `jq`, etc.) directly to their respective read-only executable paths in `nativeLibraryDir`.
+*Why:* completely solves sandbox execution errors on newer Android API levels without adding custom binaries or dependencies.
+
 **Open questions (to resolve in future sessions):**
 - ~~O-1: Soul-interview script~~ → resolved (D-015).
 - ~~O-2: Widget DSL golden examples~~ → resolved (D-022 + D-031): talk/today/memory defaults, server-status in tests, countdown + habit in the add-widget gallery.

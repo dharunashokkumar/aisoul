@@ -107,6 +107,24 @@ class ToolboxRunner(context: Context, harnessRoot: File) {
         }
     }
 
+    private fun getCommandPrefix(): String {
+        val busybox = File(nativeDir, "libbusybox.so").absolutePath
+        val jq = File(nativeDir, "libjq.so").absolutePath
+        val curl = File(nativeDir, "libcurl_exe.so").absolutePath
+        return buildString {
+            append("busybox() { \"$busybox\" \"\\$@\"; }\n")
+            applets.forEach { applet ->
+                append("$applet() { \"$busybox\" $applet \"\\$@\"; }\n")
+            }
+            if (File(jq).exists()) {
+                append("jq() { \"$jq\" \"\\$@\"; }\n")
+            }
+            if (File(curl).exists()) {
+                append("curl() { \"$curl\" \"\\$@\"; }\n")
+            }
+        }
+    }
+
     suspend fun run(
         command: String,
         timeoutMs: Long = 30_000,
@@ -117,7 +135,9 @@ class ToolboxRunner(context: Context, harnessRoot: File) {
             return@withContext ExecResult(127, "toolbox unavailable on this device abi", false, false, 0)
         }
         val start = System.currentTimeMillis()
-        val builder = ProcessBuilder(File(binDir, "sh").absolutePath, "-c", command)
+        val busybox = File(nativeDir, "libbusybox.so").absolutePath
+        val fullCommand = getCommandPrefix() + command
+        val builder = ProcessBuilder(busybox, "ash", "-c", fullCommand)
             .directory(workspace.also { it.mkdirs() })
             .redirectErrorStream(true)
         builder.environment().apply {
