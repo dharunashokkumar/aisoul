@@ -39,6 +39,7 @@ import com.aisoul.app.ui.common.PrimaryButton
 import com.aisoul.app.ui.common.SecondaryButton
 import com.aisoul.app.ui.common.pressable
 import com.aisoul.app.ui.common.staggeredEntrance
+import com.aisoul.app.ui.common.TopBar
 import com.aisoul.app.ui.theme.AccentIce
 import com.aisoul.app.ui.theme.BorderSubtle
 import com.aisoul.app.ui.theme.LocalAiSoulTypography
@@ -67,7 +68,6 @@ fun DashboardScreen(
     container: AppContainer,
     onOpenChat: (prompt: String?) -> Unit,
     onOpenFiles: () -> Unit,
-    onOpenSettings: () -> Unit,
     onOpenMemory: () -> Unit,
     onOpenTerminal: (command: String?) -> Unit,
     onOpenBackup: () -> Unit,
@@ -109,21 +109,8 @@ fun DashboardScreen(
             .statusBarsPadding()
             .navigationBarsPadding(),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Space.s12, vertical = Space.s4),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "AISOUL",
-                style = type.overline,
-                color = TextTertiary,
-                modifier = Modifier.padding(start = Space.s12).weight(1f),
-            )
+        TopBar(label = "AISOUL") {
             GhostButton(text = "add", onClick = { showAdd = true })
-            GhostButton(text = "files", onClick = onOpenFiles)
-            GhostButton(text = "settings", onClick = onOpenSettings)
         }
 
         val list = widgets ?: return

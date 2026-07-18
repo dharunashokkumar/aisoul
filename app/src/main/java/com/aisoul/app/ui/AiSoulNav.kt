@@ -1,24 +1,40 @@
 package com.aisoul.app.ui
 
 import android.net.Uri
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.aisoul.app.di.AppContainer
 import com.aisoul.app.ui.backup.BackupScreen
 import com.aisoul.app.ui.chat.ChatScreen
+import com.aisoul.app.ui.common.BottomBar
+import com.aisoul.app.ui.common.Destination
 import com.aisoul.app.ui.dashboard.DashboardScreen
 import com.aisoul.app.ui.files.FileEditorScreen
 import com.aisoul.app.ui.files.FilesScreen
@@ -39,14 +55,12 @@ private object Routes {
     const val WELCOME = "welcome"
     const val SETUP = "setup"
     const val ONBOARDING = "onboarding"
-    const val DASHBOARD = "dashboard"
     const val CHAT = "chat?chatId={chatId}&prompt={prompt}"
     const val HISTORY = "history"
     const val TERMINAL = "terminal?cmd={cmd}"
-    const val SETTINGS = "settings"
+    const val MEMORY = "memory"
     const val BACKUP = "backup"
     const val LICENSES = "licenses"
-    const val MEMORY = "memory"
     const val FILES = "files?path={path}"
     const val EDIT = "edit?path={path}"
 
@@ -58,9 +72,13 @@ private object Routes {
     fun edit(path: String) = "edit?path=${Uri.encode(path)}"
 }
 
+/** The four primary destinations that render the persistent bottom bar (D-038). */
+private val SHELL_ROUTES = Destination.entries.map { it.route }.toSet()
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AiSoulNav(container: AppContainer) {
-    // the front door: no key -> welcome; key but no soul -> interview; else the dashboard (D-023)
+    // the front door: no key -> welcome; key but no soul -> interview; else the shell (D-023)
     val startRoute by produceState<String?>(initialValue = null) {
         val provider = container.settings.selectedProvider.first()
         val hasKey = container.keys.getKey(provider) != null
@@ -68,147 +86,196 @@ fun AiSoulNav(container: AppContainer) {
         value = when {
             !hasKey -> Routes.WELCOME
             !onboarded -> Routes.ONBOARDING
-            else -> Routes.DASHBOARD
+            else -> Destination.HOME.route
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Surface0)) {
-        val start = startRoute ?: return@Box
-        val nav = rememberNavController()
-        val scope = rememberCoroutineScope()
+    val start = startRoute ?: return
+    val nav = rememberNavController()
+    val scope = rememberCoroutineScope()
+    val backStack by nav.currentBackStackEntryAsState()
+    val currentRoute = backStack?.destination?.route?.substringBefore('?')
+    // the bar yields to the keyboard so inputs sit directly on the ime
+    val showBar = currentRoute in SHELL_ROUTES && !WindowInsets.isImeVisible
 
-        NavHost(
-            navController = nav,
-            startDestination = start,
-            // DESIGN.md §4 — never a hard cut between screens
-            enterTransition = { fadeIn(fadeSpec()) + slideInVertically(initialOffsetY = { it / 24 }) },
-            exitTransition = { fadeOut(fadeSpec()) },
-            popEnterTransition = { fadeIn(fadeSpec()) },
-            popExitTransition = { fadeOut(fadeSpec()) },
+    // remember the last real tab so the bar doesn't flash "home" while sliding out
+    var selectedTab by remember { mutableStateOf(Destination.HOME) }
+    LaunchedEffect(currentRoute) {
+        Destination.fromRoute(currentRoute)?.let { selectedTab = it }
+    }
+
+    fun selectTab(dest: Destination) {
+        nav.navigate(dest.route) {
+            popUpTo(Destination.HOME.route) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize().background(Surface0)) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                // the bar owns the nav-bar inset while visible; screens keep their
+                // own navigationBarsPadding for the full-screen drill-ins
+                .then(if (showBar) Modifier.consumeWindowInsets(WindowInsets.navigationBars) else Modifier),
         ) {
-            composable(Routes.WELCOME) {
-                WelcomeScreen(onBegin = { nav.navigate(Routes.SETUP) })
+            NavHost(
+                navController = nav,
+                startDestination = start,
+                // DESIGN.md §4 — never a hard cut between screens
+                enterTransition = { fadeIn(fadeSpec()) + slideInVertically(initialOffsetY = { it / 24 }) },
+                exitTransition = { fadeOut(fadeSpec()) },
+                popEnterTransition = { fadeIn(fadeSpec()) },
+                popExitTransition = { fadeOut(fadeSpec()) },
+            ) {
+                composable(Routes.WELCOME) {
+                    WelcomeScreen(onBegin = { nav.navigate(Routes.SETUP) })
+                }
+                composable(Routes.SETUP) {
+                    SetupScreen(
+                        container = container,
+                        onDone = {
+                            scope.launch {
+                                val next = if (container.settings.onboarded.first()) {
+                                    Destination.HOME.route
+                                } else {
+                                    Routes.ONBOARDING
+                                }
+                                nav.navigate(next) { popUpTo(0) { inclusive = true } }
+                            }
+                        },
+                    )
+                }
+                composable(Routes.ONBOARDING) {
+                    OnboardingScreen(
+                        container = container,
+                        onDone = {
+                            nav.navigate(Destination.HOME.route) { popUpTo(0) { inclusive = true } }
+                        },
+                    )
+                }
+
+                // ---- the four tabs ----
+                composable(Destination.HOME.route) {
+                    DashboardScreen(
+                        container = container,
+                        onOpenChat = { prompt -> nav.navigate(Routes.chat(prompt = prompt)) },
+                        onOpenFiles = { selectTab(Destination.FILES) },
+                        onOpenMemory = { nav.navigate(Routes.MEMORY) },
+                        onOpenTerminal = { cmd -> nav.navigate(Routes.terminal(cmd)) },
+                        onOpenBackup = { nav.navigate(Routes.BACKUP) },
+                    )
+                }
+                composable(Destination.CHAT.route) {
+                    ChatScreen(
+                        container = container,
+                        onOpenHistory = { nav.navigate(Routes.HISTORY) },
+                    )
+                }
+                composable(Destination.FILES.route) {
+                    FilesScreen(
+                        container = container,
+                        path = "",
+                        onOpenDir = { dir -> nav.navigate(Routes.files(dir)) },
+                        onOpenFile = { file -> nav.navigate(Routes.edit(file)) },
+                    )
+                }
+                composable(Destination.SETTINGS.route) {
+                    SettingsScreen(
+                        container = container,
+                        onEditProvider = { nav.navigate(Routes.SETUP) },
+                        onOpenMemory = { nav.navigate(Routes.MEMORY) },
+                        onOpenTerminal = { nav.navigate(Routes.terminal()) },
+                        onOpenBackup = { nav.navigate(Routes.BACKUP) },
+                        onOpenLicenses = { nav.navigate(Routes.LICENSES) },
+                    )
+                }
+
+                // ---- drill-ins (back affordance, no bar) ----
+                composable(
+                    Routes.CHAT,
+                    arguments = listOf(
+                        navArgument("chatId") { defaultValue = "" },
+                        navArgument("prompt") { defaultValue = "" },
+                    ),
+                ) { entry ->
+                    val chatId = Uri.decode(entry.arguments?.getString("chatId").orEmpty()).ifBlank { null }
+                    val prompt = Uri.decode(entry.arguments?.getString("prompt").orEmpty())
+                    ChatScreen(
+                        container = container,
+                        chatId = chatId,
+                        initialPrompt = prompt,
+                        onBack = { nav.popBackStack() },
+                        onOpenHistory = { nav.navigate(Routes.HISTORY) },
+                    )
+                }
+                composable(Routes.HISTORY) {
+                    HistoryScreen(
+                        container = container,
+                        onBack = { nav.popBackStack() },
+                        onOpenChat = { chatId ->
+                            nav.navigate(Routes.chat(chatId = chatId)) {
+                                popUpTo(Destination.HOME.route)
+                            }
+                        },
+                    )
+                }
+                composable(Routes.MEMORY) {
+                    MemoryScreen(
+                        container = container,
+                        onBack = { nav.popBackStack() },
+                        onOpenFile = { path -> nav.navigate(Routes.edit(path)) },
+                    )
+                }
+                composable(
+                    Routes.TERMINAL,
+                    arguments = listOf(navArgument("cmd") { defaultValue = "" }),
+                ) { entry ->
+                    val cmd = Uri.decode(entry.arguments?.getString("cmd").orEmpty()).ifBlank { null }
+                    TerminalScreen(
+                        container = container,
+                        initialCommand = cmd,
+                        onBack = { nav.popBackStack() },
+                    )
+                }
+                composable(Routes.BACKUP) {
+                    BackupScreen(
+                        container = container,
+                        onBack = { nav.popBackStack() },
+                    )
+                }
+                composable(Routes.LICENSES) {
+                    LicensesScreen(onBack = { nav.popBackStack() })
+                }
+                composable(Routes.FILES) { entry ->
+                    val path = Uri.decode(entry.arguments?.getString("path") ?: "")
+                    FilesScreen(
+                        container = container,
+                        path = path,
+                        onBack = { nav.popBackStack() },
+                        onOpenDir = { dir -> nav.navigate(Routes.files(dir)) },
+                        onOpenFile = { file -> nav.navigate(Routes.edit(file)) },
+                    )
+                }
+                composable(Routes.EDIT) { entry ->
+                    val path = Uri.decode(entry.arguments?.getString("path") ?: "")
+                    FileEditorScreen(
+                        container = container,
+                        path = path,
+                        onBack = { nav.popBackStack() },
+                    )
+                }
             }
-            composable(Routes.SETUP) {
-                SetupScreen(
-                    container = container,
-                    onDone = {
-                        scope.launch {
-                            val next = if (container.settings.onboarded.first()) Routes.DASHBOARD else Routes.ONBOARDING
-                            nav.navigate(next) { popUpTo(0) { inclusive = true } }
-                        }
-                    },
-                )
-            }
-            composable(Routes.ONBOARDING) {
-                OnboardingScreen(
-                    container = container,
-                    onDone = {
-                        nav.navigate(Routes.DASHBOARD) { popUpTo(0) { inclusive = true } }
-                    },
-                )
-            }
-            composable(Routes.DASHBOARD) {
-                DashboardScreen(
-                    container = container,
-                    onOpenChat = { prompt -> nav.navigate(Routes.chat(prompt = prompt)) },
-                    onOpenFiles = { nav.navigate(Routes.files("")) },
-                    onOpenSettings = { nav.navigate(Routes.SETTINGS) },
-                    onOpenMemory = { nav.navigate(Routes.MEMORY) },
-                    onOpenTerminal = { cmd -> nav.navigate(Routes.terminal(cmd)) },
-                    onOpenBackup = { nav.navigate(Routes.BACKUP) },
-                )
-            }
-            composable(
-                Routes.CHAT,
-                arguments = listOf(
-                    navArgument("chatId") { defaultValue = "" },
-                    navArgument("prompt") { defaultValue = "" },
-                ),
-            ) { entry ->
-                val chatId = Uri.decode(entry.arguments?.getString("chatId").orEmpty()).ifBlank { null }
-                val prompt = Uri.decode(entry.arguments?.getString("prompt").orEmpty())
-                ChatScreen(
-                    container = container,
-                    chatId = chatId,
-                    initialPrompt = prompt,
-                    onBack = { nav.popBackStack() },
-                    onOpenHistory = { nav.navigate(Routes.HISTORY) },
-                )
-            }
-            composable(Routes.HISTORY) {
-                HistoryScreen(
-                    container = container,
-                    onBack = { nav.popBackStack() },
-                    onOpenChat = { chatId ->
-                        nav.navigate(Routes.chat(chatId = chatId)) {
-                            popUpTo(Routes.DASHBOARD)
-                        }
-                    },
-                )
-            }
-            composable(
-                Routes.TERMINAL,
-                arguments = listOf(navArgument("cmd") { defaultValue = "" }),
-            ) { entry ->
-                val cmd = Uri.decode(entry.arguments?.getString("cmd").orEmpty()).ifBlank { null }
-                TerminalScreen(
-                    container = container,
-                    initialCommand = cmd,
-                    onBack = { nav.popBackStack() },
-                )
-            }
-            composable(Routes.SETTINGS) {
-                SettingsScreen(
-                    container = container,
-                    onBack = { nav.popBackStack() },
-                    onEditProvider = { nav.navigate(Routes.SETUP) },
-                    onOpenMemory = { nav.navigate(Routes.MEMORY) },
-                    onOpenTerminal = { nav.navigate(Routes.terminal()) },
-                    onOpenBackup = { nav.navigate(Routes.BACKUP) },
-                    onOpenLicenses = { nav.navigate(Routes.LICENSES) },
-                )
-            }
-            composable(Routes.BACKUP) {
-                BackupScreen(
-                    container = container,
-                    onBack = { nav.popBackStack() },
-                )
-            }
-            composable(Routes.LICENSES) {
-                LicensesScreen(onBack = { nav.popBackStack() })
-            }
-            composable(Routes.MEMORY) {
-                MemoryScreen(
-                    container = container,
-                    onBack = { nav.popBackStack() },
-                    onOpenFile = { path -> nav.navigate(Routes.edit(path)) },
-                )
-            }
-            composable(
-                Routes.FILES,
-                arguments = listOf(navArgument("path") { defaultValue = "" }),
-            ) { entry ->
-                val path = Uri.decode(entry.arguments?.getString("path") ?: "")
-                FilesScreen(
-                    container = container,
-                    path = path,
-                    onBack = { nav.popBackStack() },
-                    onOpenDir = { dir -> nav.navigate(Routes.files(dir)) },
-                    onOpenFile = { file -> nav.navigate(Routes.edit(file)) },
-                )
-            }
-            composable(
-                Routes.EDIT,
-                arguments = listOf(navArgument("path") { defaultValue = "" }),
-            ) { entry ->
-                val path = Uri.decode(entry.arguments?.getString("path") ?: "")
-                FileEditorScreen(
-                    container = container,
-                    path = path,
-                    onBack = { nav.popBackStack() },
-                )
-            }
+        }
+
+        AnimatedVisibility(
+            visible = showBar,
+            enter = fadeIn(fadeSpec()) + slideInVertically(initialOffsetY = { it }),
+            exit = fadeOut(fadeSpec()) + slideOutVertically(targetOffsetY = { it }),
+        ) {
+            BottomBar(current = selectedTab, onSelect = ::selectTab)
         }
     }
 }

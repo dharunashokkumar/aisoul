@@ -47,6 +47,7 @@ import com.aisoul.app.ui.common.AiSoulIcons
 import com.aisoul.app.ui.common.AiSoulTextField
 import com.aisoul.app.ui.common.PrimaryButton
 import com.aisoul.app.ui.common.SecondaryButton
+import com.aisoul.app.ui.common.TopBar
 import com.aisoul.app.ui.common.hapticConfirm
 import com.aisoul.app.ui.common.hapticReject
 import com.aisoul.app.ui.common.pressable
@@ -114,160 +115,149 @@ fun BackupScreen(container: AppContainer, onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .navigationBarsPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = Space.screen),
+                .navigationBarsPadding(),
         ) {
-            Spacer(Modifier.height(Space.s8))
-            Box(
+            TopBar(label = "BACKUP", onBack = onBack)
+            Column(
                 modifier = Modifier
-                    .size(44.dp)
-                    .clip(RadiusCard)
-                    .pressable(onClick = onBack),
-                contentAlignment = Alignment.Center,
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = Space.screen),
             ) {
-                Icon(
-                    imageVector = AiSoulIcons.Back,
-                    contentDescription = "back",
-                    tint = TextSecondary,
-                    modifier = Modifier.size(20.dp),
+                Text(
+                    text = "backup",
+                    style = type.display,
+                    color = TextPrimary,
+                    modifier = Modifier.staggeredEntrance(0),
                 )
-            }
-
-            Spacer(Modifier.height(Space.s32))
-            Text(
-                text = "backup",
-                style = type.display,
-                color = TextPrimary,
-                modifier = Modifier.staggeredEntrance(0),
-            )
-            Spacer(Modifier.height(Space.s8))
-            Text(
-                text = "your whole harness, encrypted on this phone before it goes anywhere.",
-                style = type.body,
-                color = TextSecondary,
-                modifier = Modifier.staggeredEntrance(1),
-            )
-            Spacer(Modifier.height(Space.stack))
-
-            // ---- passphrase ----
-            BackupCard(entrance = 2, label = "PASSPHRASE") {
-                PassphraseSection(
-                    hasPassphrase = state.hasPassphrase,
-                    onSet = { pass, again ->
-                        view.hapticConfirm()
-                        viewModel.setPassphrase(pass, again)
-                    },
+                Spacer(Modifier.height(Space.s8))
+                Text(
+                    text = "your whole harness, encrypted on this phone before it goes anywhere.",
+                    style = type.body,
+                    color = TextSecondary,
+                    modifier = Modifier.staggeredEntrance(1),
                 )
-            }
-            Spacer(Modifier.height(Space.s24))
+                Spacer(Modifier.height(Space.stack))
 
-            // ---- google drive ----
-            BackupCard(entrance = 3, label = "GOOGLE DRIVE") {
-                if (!state.driveEnabled) {
-                    Text(
-                        text = "daily encrypted backups to an “AiSoul Backups” folder in your own drive. aisoul can only ever see files it created.",
-                        style = type.body,
-                        color = TextSecondary,
+                // ---- passphrase ----
+                BackupCard(entrance = 2, label = "PASSPHRASE") {
+                    PassphraseSection(
+                        hasPassphrase = state.hasPassphrase,
+                        onSet = { pass, again ->
+                            view.hapticConfirm()
+                            viewModel.setPassphrase(pass, again)
+                        },
                     )
-                    Spacer(Modifier.height(Space.s16))
-                    SecondaryButton(text = "connect google drive", onClick = { viewModel.connect() })
-                } else {
-                    StatusRow(label = "account", value = state.accountEmail ?: "connected")
-                    StatusRow(
-                        label = "last backup",
-                        value = if (state.lastBackupAt > 0) relativeTime(state.lastBackupAt) else "never",
-                    )
-                    state.lastResult?.let { StatusRow(label = "status", value = it) }
-                    Spacer(Modifier.height(Space.s8))
-                    CheckRow(
-                        checked = state.wifiOnly,
-                        label = "wi-fi only",
-                        onToggle = { viewModel.setWifiOnly(!state.wifiOnly) },
-                    )
-                    if (state.needsReconnect) {
-                        Spacer(Modifier.height(Space.s8))
+                }
+                Spacer(Modifier.height(Space.s24))
+
+                // ---- google drive ----
+                BackupCard(entrance = 3, label = "GOOGLE DRIVE") {
+                    if (!state.driveEnabled) {
                         Text(
-                            text = "drive authorization lapsed — reconnect to keep backing up.",
-                            style = type.caption,
-                            color = Negative,
+                            text = "daily encrypted backups to an “AiSoul Backups” folder in your own drive. aisoul can only ever see files it created.",
+                            style = type.body,
+                            color = TextSecondary,
                         )
-                        Spacer(Modifier.height(Space.s8))
-                        SecondaryButton(text = "reconnect", onClick = { viewModel.connect() })
-                        Spacer(Modifier.height(Space.s12))
-                    } else {
                         Spacer(Modifier.height(Space.s16))
-                    }
-                    SecondaryButton(text = "back up now", onClick = {
-                        view.hapticConfirm()
-                        viewModel.backupNow()
-                    })
-                    Spacer(Modifier.height(Space.s12))
-                    SecondaryButton(text = "disconnect", onClick = {
-                        view.hapticReject()
-                        viewModel.disconnect()
-                    })
-
-                    state.archives?.let { archives ->
-                        Spacer(Modifier.height(Space.s24))
-                        Text(text = "ARCHIVES", style = type.overline, color = TextTertiary)
+                        SecondaryButton(text = "connect google drive", onClick = { viewModel.connect() })
+                    } else {
+                        StatusRow(label = "account", value = state.accountEmail ?: "connected")
+                        StatusRow(
+                            label = "last backup",
+                            value = if (state.lastBackupAt > 0) relativeTime(state.lastBackupAt) else "never",
+                        )
+                        state.lastResult?.let { StatusRow(label = "status", value = it) }
                         Spacer(Modifier.height(Space.s8))
-                        if (archives.isEmpty()) {
+                        CheckRow(
+                            checked = state.wifiOnly,
+                            label = "wi-fi only",
+                            onToggle = { viewModel.setWifiOnly(!state.wifiOnly) },
+                        )
+                        if (state.needsReconnect) {
+                            Spacer(Modifier.height(Space.s8))
                             Text(
-                                text = "no archives yet. the first backup lands after “back up now” or tonight's schedule.",
+                                text = "drive authorization lapsed — reconnect to keep backing up.",
                                 style = type.caption,
-                                color = TextTertiary,
+                                color = Negative,
                             )
+                            Spacer(Modifier.height(Space.s8))
+                            SecondaryButton(text = "reconnect", onClick = { viewModel.connect() })
+                            Spacer(Modifier.height(Space.s12))
                         } else {
-                            archives.forEach { archive ->
-                                ArchiveRow(archive = archive, onRestore = { viewModel.restoreFromDrive(archive) })
+                            Spacer(Modifier.height(Space.s16))
+                        }
+                        SecondaryButton(text = "back up now", onClick = {
+                            view.hapticConfirm()
+                            viewModel.backupNow()
+                        })
+                        Spacer(Modifier.height(Space.s12))
+                        SecondaryButton(text = "disconnect", onClick = {
+                            view.hapticReject()
+                            viewModel.disconnect()
+                        })
+
+                        state.archives?.let { archives ->
+                            Spacer(Modifier.height(Space.s24))
+                            Text(text = "ARCHIVES", style = type.overline, color = TextTertiary)
+                            Spacer(Modifier.height(Space.s8))
+                            if (archives.isEmpty()) {
+                                Text(
+                                    text = "no archives yet. the first backup lands after “back up now” or tonight's schedule.",
+                                    style = type.caption,
+                                    color = TextTertiary,
+                                )
+                            } else {
+                                archives.forEach { archive ->
+                                    ArchiveRow(archive = archive, onRestore = { viewModel.restoreFromDrive(archive) })
+                                }
                             }
                         }
                     }
                 }
-            }
-            Spacer(Modifier.height(Space.s24))
+                Spacer(Modifier.height(Space.s24))
 
-            // ---- SAF fallback (SPEC §9): no google account needed ----
-            BackupCard(entrance = 4, label = "THIS DEVICE") {
-                Text(
-                    text = "the same encrypted archive, through the system file picker. works with no google account; also the device-to-device path.",
-                    style = type.body,
-                    color = TextSecondary,
-                )
-                Spacer(Modifier.height(Space.s16))
-                SecondaryButton(text = "export archive to a file", onClick = {
-                    exportLauncher.launch(viewModel.exportName())
-                })
-                Spacer(Modifier.height(Space.s12))
-                SecondaryButton(text = "import archive from a file", onClick = {
-                    importLauncher.launch(arrayOf("*/*"))
-                })
-            }
+                // ---- SAF fallback (SPEC §9): no google account needed ----
+                BackupCard(entrance = 4, label = "THIS DEVICE") {
+                    Text(
+                        text = "the same encrypted archive, through the system file picker. works with no google account; also the device-to-device path.",
+                        style = type.body,
+                        color = TextSecondary,
+                    )
+                    Spacer(Modifier.height(Space.s16))
+                    SecondaryButton(text = "export archive to a file", onClick = {
+                        exportLauncher.launch(viewModel.exportName())
+                    })
+                    Spacer(Modifier.height(Space.s12))
+                    SecondaryButton(text = "import archive from a file", onClick = {
+                        importLauncher.launch(arrayOf("*/*"))
+                    })
+                }
 
-            Spacer(Modifier.height(Space.s24))
-            state.busy?.let {
-                Text(text = it, style = type.caption, color = TextTertiary)
-                Spacer(Modifier.height(Space.s8))
+                Spacer(Modifier.height(Space.s24))
+                state.busy?.let {
+                    Text(text = it, style = type.caption, color = TextTertiary)
+                    Spacer(Modifier.height(Space.s8))
+                }
+                state.error?.let {
+                    Text(
+                        text = it,
+                        style = type.caption,
+                        color = Negative,
+                        modifier = Modifier.pressable { viewModel.dismissMessage() },
+                    )
+                    Spacer(Modifier.height(Space.s8))
+                }
+                state.notice?.let {
+                    Text(
+                        text = it,
+                        style = type.caption,
+                        color = Positive,
+                        modifier = Modifier.pressable { viewModel.dismissMessage() },
+                    )
+                }
+                Spacer(Modifier.height(Space.s48))
             }
-            state.error?.let {
-                Text(
-                    text = it,
-                    style = type.caption,
-                    color = Negative,
-                    modifier = Modifier.pressable { viewModel.dismissMessage() },
-                )
-                Spacer(Modifier.height(Space.s8))
-            }
-            state.notice?.let {
-                Text(
-                    text = it,
-                    style = type.caption,
-                    color = Positive,
-                    modifier = Modifier.pressable { viewModel.dismissMessage() },
-                )
-            }
-            Spacer(Modifier.height(Space.s48))
         }
 
         state.passphrasePrompt?.let { prompt ->

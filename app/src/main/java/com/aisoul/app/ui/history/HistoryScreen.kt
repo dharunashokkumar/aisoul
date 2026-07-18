@@ -39,6 +39,7 @@ import com.aisoul.app.ui.common.GhostButton
 import com.aisoul.app.ui.common.hapticReject
 import com.aisoul.app.ui.common.pressable
 import com.aisoul.app.ui.common.staggeredEntrance
+import com.aisoul.app.ui.common.TopBar
 import com.aisoul.app.ui.theme.BorderSubtle
 import com.aisoul.app.ui.theme.LocalAiSoulTypography
 import com.aisoul.app.ui.theme.Negative
@@ -74,33 +75,7 @@ fun HistoryScreen(
             .statusBarsPadding()
             .navigationBarsPadding(),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Space.s12, vertical = Space.s4),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(RadiusCard)
-                    .pressable(onClick = onBack),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = AiSoulIcons.Back,
-                    contentDescription = "back",
-                    tint = TextSecondary,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-            Text(
-                text = "HISTORY",
-                style = type.overline,
-                color = TextTertiary,
-                modifier = Modifier.padding(start = Space.s4),
-            )
-        }
+        TopBar(label = "HISTORY", onBack = onBack)
 
         val list = chats
         when {

@@ -41,12 +41,12 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.aisoul.app.di.AppContainer
 import com.aisoul.app.ui.common.AiSoulIcons
 import com.aisoul.app.ui.common.GhostButton
+import com.aisoul.app.ui.common.TopBar
 import com.aisoul.app.ui.common.pressable
 import com.aisoul.app.ui.theme.AccentIce
 import com.aisoul.app.ui.theme.LocalAiSoulTypography
 import com.aisoul.app.ui.theme.Negative
 import com.aisoul.app.ui.theme.RadiusButton
-import com.aisoul.app.ui.theme.RadiusCard
 import com.aisoul.app.ui.theme.RadiusInput
 import com.aisoul.app.ui.theme.Space
 import com.aisoul.app.ui.theme.Surface1
@@ -141,32 +141,7 @@ fun TerminalScreen(
             .navigationBarsPadding()
             .imePadding(),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Space.s12, vertical = Space.s4),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(RadiusCard)
-                    .pressable(onClick = onBack),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = AiSoulIcons.Back,
-                    contentDescription = "back",
-                    tint = TextSecondary,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-            Text(
-                text = "TERMINAL",
-                style = type.overline,
-                color = TextTertiary,
-                modifier = Modifier.padding(start = Space.s4).weight(1f),
-            )
+        TopBar(label = "TERMINAL", onBack = onBack) {
             GhostButton(text = "clear", onClick = { viewModel.clear() })
         }
 

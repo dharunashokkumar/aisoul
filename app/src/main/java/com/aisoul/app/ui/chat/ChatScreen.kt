@@ -66,6 +66,7 @@ import com.aisoul.app.providers.Role
 import com.aisoul.app.ui.common.AiSoulIcons
 import com.aisoul.app.ui.common.GhostButton
 import com.aisoul.app.ui.common.ShimmerText
+import com.aisoul.app.ui.common.TopBar
 import com.aisoul.app.ui.common.pressable
 import com.aisoul.app.ui.common.staggeredEntrance
 import com.aisoul.app.ui.theme.AccentIce
@@ -96,9 +97,9 @@ import kotlinx.serialization.json.contentOrNull
 @Composable
 fun ChatScreen(
     container: AppContainer,
-    chatId: String?,
-    initialPrompt: String,
-    onBack: () -> Unit,
+    chatId: String? = null,
+    initialPrompt: String = "",
+    onBack: (() -> Unit)? = null,
     onOpenHistory: () -> Unit,
 ) {
     val viewModel: ChatViewModel = viewModel(
@@ -138,32 +139,7 @@ fun ChatScreen(
                 .navigationBarsPadding()
                 .imePadding(),
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = Space.s12, vertical = Space.s4),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RadiusCard)
-                        .pressable(onClick = onBack),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = AiSoulIcons.Back,
-                        contentDescription = "back",
-                        tint = TextSecondary,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-                Text(
-                    text = "AISOUL",
-                    style = type.overline,
-                    color = TextTertiary,
-                    modifier = Modifier.padding(start = Space.s4).weight(1f),
-                )
+            TopBar(label = "CHAT", onBack = onBack) {
                 GhostButton(text = "history", onClick = onOpenHistory)
                 GhostButton(text = "new", onClick = { viewModel.newChat() })
             }

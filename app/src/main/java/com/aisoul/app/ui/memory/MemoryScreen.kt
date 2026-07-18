@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -32,11 +31,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aisoul.app.di.AppContainer
-import com.aisoul.app.ui.common.AiSoulIcons
 import com.aisoul.app.ui.common.AiSoulTextField
 import com.aisoul.app.ui.common.CountUpText
 import com.aisoul.app.ui.common.GhostButton
 import com.aisoul.app.ui.common.SecondaryButton
+import com.aisoul.app.ui.common.TopBar
 import com.aisoul.app.ui.common.hapticReject
 import com.aisoul.app.ui.common.pressable
 import com.aisoul.app.ui.common.staggeredEntrance
@@ -76,22 +75,7 @@ fun MemoryScreen(
             .navigationBarsPadding()
             .imePadding(),
     ) {
-        Box(
-            modifier = Modifier
-                .padding(horizontal = Space.screen)
-                .padding(top = Space.s8)
-                .size(44.dp)
-                .clip(RadiusCard)
-                .pressable(onClick = onBack),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = AiSoulIcons.Back,
-                contentDescription = "back",
-                tint = TextSecondary,
-                modifier = Modifier.size(20.dp),
-            )
-        }
+        TopBar(label = "MEMORY", onBack = onBack)
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -99,8 +83,6 @@ fun MemoryScreen(
         ) {
             item {
                 Column(modifier = Modifier.staggeredEntrance(0)) {
-                    Text(text = "MEMORY", style = type.overline, color = TextTertiary)
-                    Spacer(Modifier.height(Space.s12))
                     CountUpText(
                         value = state.memories.size,
                         style = type.dataHero,

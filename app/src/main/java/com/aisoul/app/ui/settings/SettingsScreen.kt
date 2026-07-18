@@ -59,7 +59,6 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(
     container: AppContainer,
-    onBack: () -> Unit,
     onEditProvider: () -> Unit,
     onOpenMemory: () -> Unit,
     onOpenTerminal: () -> Unit,
@@ -91,23 +90,7 @@ fun SettingsScreen(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = Space.screen),
     ) {
-        Spacer(Modifier.height(Space.s8))
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(RadiusCard)
-                .pressable(onClick = onBack),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = AiSoulIcons.Back,
-                contentDescription = "back",
-                tint = TextSecondary,
-                modifier = Modifier.size(20.dp),
-            )
-        }
-
-        Spacer(Modifier.height(Space.s32))
+        Spacer(Modifier.height(Space.s48))
         Text(
             text = "settings",
             style = type.display,

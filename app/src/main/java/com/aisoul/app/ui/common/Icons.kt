@@ -136,6 +136,36 @@ object AiSoulIcons {
         }
     }
 
+    /** speech bubble — the chat */
+    val Chat: ImageVector by lazy {
+        icon("chat") {
+            stroke {
+                moveTo(5f, 6f); lineTo(19f, 6f); lineTo(19f, 15f); lineTo(9f, 15f); lineTo(5f, 19f); lineTo(5f, 15f); close()
+            }
+        }
+    }
+
+    /** folder — files & harness */
+    val Files: ImageVector by lazy {
+        icon("files") {
+            stroke {
+                moveTo(4f, 7f); lineTo(9f, 7f); lineTo(11f, 4.5f); lineTo(20f, 4.5f); lineTo(20f, 19.5f); lineTo(4f, 19.5f); close()
+            }
+        }
+    }
+
+    /** sliders — settings */
+    val Settings: ImageVector by lazy {
+        icon("settings") {
+            stroke {
+                moveTo(4f, 7f); lineTo(20f, 7f)
+                moveTo(9f, 7f); lineTo(9f, 4.5f); lineTo(15f, 4.5f); lineTo(15f, 7f)
+                moveTo(4f, 17f); lineTo(20f, 17f)
+                moveTo(9f, 17f); lineTo(9f, 19.5f); lineTo(15f, 19.5f); lineTo(15f, 17f)
+            }
+        }
+    }
+
     val Chevron: ImageVector by lazy {
         icon("chevron") {
             stroke {
