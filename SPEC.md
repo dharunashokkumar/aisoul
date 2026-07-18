@@ -155,13 +155,15 @@ v1 toolbox:
 
 | Tool | Source |
 |---|---|
-| `sh` + coreutils (`ls`, `cat`, `grep`, `sed`, `awk`, `head`, `tail`, `wc`, …) | busybox (static, bundled) |
+| `sh` + coreutils (`ls`, `cat`, `grep`, `sed`, `awk`, `head`, `tail`, `wc`, …) | busybox (static, bundled) where the device permits it; otherwise the device's own `/system/bin/sh` + toybox |
 | `wget`, `nslookup`, `nc` | busybox applets |
 | `curl` | static build, bundled |
 | `jq` | static build, bundled |
 | `ping` | the device's own `/system/bin/ping` (apps may exec it; busybox ping needs raw sockets and can't run unprivileged) |
 
-Environment: `HOME` and working dir inside a dedicated `/harness/workspace/` sandbox dir; `PATH` resolves to bundled binaries; per-command timeout (default 30 s), output cap (default 64 KB), no background daemons. The user also gets a manual **terminal screen** using the same toolbox — useful on its own and honest about what the agent can and can't do.
+**Devices vary in which bundled binaries they will actually run** — Android's seccomp filter kills non-whitelisted syscalls per binary — so the shell *and* each tool are probed at first use, with Android's own shell as the floor (D-036, D-037). The toolbox is never simply dead, `$AISOUL_TOOLBOX` names the shell in use, and the agent's tool description lists what this device really has. `curl` reaches https anywhere (its certs come from the platform trust store and hostnames resolve over DoH, since Android gives a static binary neither).
+
+Environment: `HOME` and working dir inside a dedicated `/harness/workspace/` sandbox dir; `PATH` resolves to bundled binaries then `/system/bin`; per-command timeout (default 30 s), output cap (default 64 KB), no background daemons. The user also gets a manual **terminal screen** using the same toolbox — useful on its own and honest about what the agent can and can't do.
 
 Explicitly out of scope for v1: package installation, proot distros, Termux integration (roadmap §13).
 

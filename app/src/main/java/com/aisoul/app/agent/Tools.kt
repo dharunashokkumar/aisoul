@@ -221,7 +221,9 @@ class FetchTool(http: OkHttpClient) : AgentTool {
 
 class RunCommandTool(private val toolbox: ToolboxRunner) : AgentTool {
     override val name = "run_command"
-    override val description = "run a shell command in the sandboxed toolbox (busybox, curl, jq, ping; cwd = harness workspace; 30s timeout; 64KB output cap). no package manager, no root."
+    override val description: String
+        get() = "run a shell command in the sandboxed toolbox. this device has: ${toolbox.capabilitySummary}. " +
+            "cwd = the harness workspace, the only writable place besides \$TMPDIR. 30s timeout, 64KB output cap, no root."
     override val inputSchema = schema { string("command", "the exact shell command", req = true) }
 
     override fun gateAction(args: JsonObject): GateAction? {

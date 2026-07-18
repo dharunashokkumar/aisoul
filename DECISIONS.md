@@ -174,6 +174,36 @@ Version → **0.6.0 (versionCode 5)**.
 **D-035 — Executable path change for ProcessBuilder and prepended shell functions.** Under Android 10+ target SDK 29+ restrictions (seccomp policy), calling `execve` on any binary in a writable application directory (such as symlinks in `filesDir/bin/*`) causes a SIGSYS signal (exit code 159). To bypass this cleanly, `ToolboxRunner` is updated to run the shell directly from the read-only, package-manager-extracted `libbusybox.so` in `nativeLibraryDir` (which is permitted), and commands are prefixed with shell functions that map tool invocations (`ls`, `cat`, `curl`, `jq`, etc.) directly to their respective read-only executable paths in `nativeLibraryDir`.
 *Why:* completely solves sandbox execution errors on newer Android API levels without adding custom binaries or dependencies.
 
+## 2026-07-18 — Probe the shell instead of assuming one (supersedes D-035)
+
+**D-036 — `ToolboxRunner` picks its shell at runtime.** D-035 traded exit 159 for exit 127: busybox is a multi-call binary that dispatches on `basename(argv[0])`, and `ProcessBuilder` always sets `argv[0]` to the path it execs — so running `nativeLibraryDir/libbusybox.so` makes busybox look for an applet named `libbusybox.so` and die with `applet not found` before any command runs. The shell-function prefix D-035 added had the same flaw (every function re-invoked that same path) *and* passed `"\$@"` — a literal `$@` — so arguments were never forwarded either. There is no way to set `argv[0]` from Java, and the file must be named `lib*.so` to be extracted at all, so busybox is only reachable through an applet-named symlink — the very thing that dies with SIGSYS on some devices.
+
+Neither path is safe to assume, so `ToolboxRunner` now **probes once per process** and caches the winner:
+
+1. `BUSYBOX` — `filesDir/bin/sh` → busybox ash, full applet set (the original design).
+2. `SYSTEM_SH_BUSYBOX` — `/system/bin/sh` as the shell, busybox applets still first on `PATH` (covers ash itself tripping seccomp while applet exec is fine).
+3. `SYSTEM_SH` — `/system/bin/sh` with Android's own toybox utilities. Always available, execs nothing from app-writable storage.
+
+The probe is `echo p1 && ls / >/dev/null 2>&1 && echo p2` — it must fork+exec, because the failures being dodged land on the child, not on the shell, and a SIGSYS'd shell loses its buffered stdout (which is why the earlier device logs showed exit 159 with *no output at all*). curl and jq are always invoked through shell functions pointing straight at `nativeLibraryDir` — that path execs everywhere and neither binary cares about `argv[0]`. The active mode is exported as **`$AISOUL_TOOLBOX`** so a failing device can be diagnosed from the terminal screen in one command.
+
+*Why:* we cannot reproduce either failure from the build host, and the two candidate root causes (W^X exec denial vs. a static-binary syscall blocked by the app seccomp filter) demand opposite fixes. Probing settles it on the device, degrades to a shell that always works, and never leaves the tool dead.
+
+## 2026-07-18 — What the device actually said, and the two real curl bugs
+
+**D-037 — Probe every bundled binary; fix curl's certs and DNS.** On-device evidence (Android 14, aarch64, `untrusted_app_34`) settled D-036's open question and turned up two further bugs:
+
+1. **`$AISOUL_TOOLBOX` reported `system-sh`** — both busybox modes lost the probe, so busybox is unusable on this device.
+2. **`jq` died with `Bad system call` (exit 159 = SIGSYS) running straight out of `nativeLibraryDir`** — the one path that is definitely exec-allowed. That kills the W^X theory: the SIGSYS is Android's **seccomp filter rejecting a syscall**, and it is **per binary**, not per location. curl (musl, verified) survives; busybox and jq (different toolchain) do not. The original exit 159 was busybox ash dying at startup all along, and its buffered stdout dying with it — which is why the output was empty.
+3. **`curl` returned `http_code=000` for every URL.** Two independent causes, both reproduced under WSL against the very binary we ship (`curl 8.7.1, x86_64-pc-linux-musl, OpenSSL 3.1.4`):
+   - **Certs.** `buildCaBundle()` scanned `/system/etc/security/cacerts`, which Android 14 emptied when the roots moved into the conscrypt APEX. `listFiles().orEmpty()` then wrote a **zero-byte bundle**, and `CURL_CA_BUNDLE` pointing at it fails every handshake — measured: `curl: (77) error setting certificate file` → `http_code=000`. Now built from the platform's own trust store via `TrustManagerFactory` + PEM encoding, which is path-independent and works on every version. Bundles under 4 KB are treated as broken and rebuilt, so devices carrying the empty one heal on upgrade.
+   - **DNS.** Android has **no `/etc/resolv.conf`**, so a static musl curl cannot resolve a hostname at all. Measured with resolv.conf bind-mounted empty: `Resolving timed out` → `http_code=000`; with `--doh-url` → `http_code=200`. Fixed with **DNS-over-HTTPS** (`https://1.1.1.1/dns-query`), which works precisely because the resolver is an IP literal and needs no DNS to bootstrap. Written to `$CURL_HOME/.curlrc` rather than baked into the call, so any command can override it (verified the file is honoured: a bogus DoH address changes the failure).
+
+Mechanically: bootstrap probes the shell ladder, then each bundled binary with `--version` (a seccomp-blocked binary dies there exactly as it would on real work) and records how far it got — `PATH` (symlink runs, so `command -v` finds it), `FUNCTION` (only `nativeLibraryDir` runs), or `DEAD` (symlink deleted, so `command -v` tells the truth). Busybox applet symlinks moved to `bin/busybox/` and are kept **off `PATH`** unless busybox works, so its dead `ls` can never shadow Android's working one; curl/jq links live in `bin/tools/`. `run_command`'s description is now generated from the probe result, so the agent is told what this device has instead of spending a turn per discovery, and any exit 159 gets a plain-language SIGSYS footnote telling it not to retry.
+
+*Why:* the previous session's transcript is the argument — the agent burned an entire conversation rediscovering a dead toolbox, and concluded "busybox is absent" when it was present but unrunnable. Capability belongs in the tool description, measured, not in the model's guesswork.
+
+**Privacy note:** DoH means hostnames typed into `run_command`'s curl are resolved by Cloudflare. This is user-initiated shell traffic (the same command already contacts arbitrary hosts), not app telemetry, so SPEC §2's "two kinds of servers" promise about *app* traffic stands — but it is a third party the phone did not previously talk to, and `$CURL_HOME/.curlrc` is one line to change if we'd rather it be opt-in.
+
 **Open questions (to resolve in future sessions):**
 - ~~O-1: Soul-interview script~~ → resolved (D-015).
 - ~~O-2: Widget DSL golden examples~~ → resolved (D-022 + D-031): talk/today/memory defaults, server-status in tests, countdown + habit in the add-widget gallery.
@@ -181,4 +211,6 @@ Version → **0.6.0 (versionCode 5)**.
 - ~~O-4: notes/ auto-create~~ → resolved on-first-write (D-016).
 - O-5: Tester recruitment plan specifics for the 12×14 closed test.
 - ~~O-6: Agent foreground service~~ → resolved (D-025).
+- ~~O-8: which toolbox mode the device lands on~~ → answered `system-sh` (D-037). The `libexecas.so` shim idea is **dead** — argv[0] was never the blocker for busybox; it is seccomp, and no shim fixes that.
+- O-9: Replace the busybox and jq binaries with builds that survive Android's seccomp filter (curl's musl toolchain is the known-good reference — it runs on the same device). Until then `system-sh` + toybox is the real toolbox on Android 14, and jq is dead weight in the APK (~1.7 MB/abi) worth dropping if a working build doesn't materialise.
 - O-7: OAuth consent screen completion — **progress 2026-07-17:** OAuth client created in `aisoul-502608` (id `333220536955-…9.apps.googleusercontent.com`; unused in code — AuthorizationClient matches by package+SHA-1); privacy policy live at `https://dharun.dev/projects/AiSoul/privacy` (AppLinks updated to match). Still open: confirm the client is the **Android** type with `com.aisoul.app` + debug SHA-1, add the **release/Play App Signing SHA-1 later**, add the account as a **test user** while the consent screen is in Testing, and verify Drive connect on device.
